@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { after, describe, it } from 'node:test';
 
 import { createApiMiddleware } from '../../src/server/api.js';
+import { sameOrigin } from '../../src/server/origin.js';
 import { loadConfig } from '../../src/server/config.js';
 import { AGENTS, splitArgs } from '../../src/server/connectors/agents.js';
 import { createConnectors } from '../../src/server/connectors/index.js';
@@ -442,6 +443,32 @@ describe('the connector API', () => {
 
       /** Reading is left alone: it changes nothing and leaks nothing secret. */
       assert.equal((await request('/api/tasks', { headers: { origin: 'http://evil.example' } })).status, 200);
+    });
+  });
+
+  /**
+   * A browser sends `Origin` on every state-changing request, including to its
+   * own page. Node's fetch sends none at all, so a test that does not set one
+   * by hand proves nothing about the guard.
+   */
+  it('lets this page through, over either protocol version', async () => {
+    const { middleware } = serve(wired());
+
+    await withServer(middleware, async (request, origin) => {
+      const here = new URL(origin).host;
+
+      const ok = await request('/api/connectors/run', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin },
+        body: JSON.stringify({ name: 'check_task', args: {} }),
+      });
+      assert.equal(ok.status, 200, 'a same-origin call is not a cross-site one');
+
+      /** HTTP/2 carries the authority as a pseudo-header and sends no Host. */
+      assert.equal(sameOrigin({ headers: { origin, ':authority': here } }), true);
+      assert.equal(sameOrigin({ headers: { origin }, authority: here }), true);
+      assert.equal(sameOrigin({ headers: { origin, host: here } }), true);
+      assert.equal(sameOrigin({ headers: { origin, ':authority': 'evil.example' } }), false);
     });
   });
 

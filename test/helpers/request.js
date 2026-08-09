@@ -20,7 +20,8 @@ export async function withServer(middleware, run) {
         body = text;
       }
       return { status: res.status, headers: res.headers, body };
-    });
+    /** The origin too: a guard that reads it needs a test that can send it. */
+    }, origin);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

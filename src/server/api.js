@@ -64,6 +64,9 @@ export function createApiMiddleware(config, connectors = null) {
      * into it.
      */
     if (req.method !== 'GET' && req.method !== 'HEAD' && !sameOrigin(req)) {
+      /** Refusing in silence makes this impossible to tell from a bug. */
+      console.warn(`api: refused ${req.method} ${path} — origin ${req.headers.origin ?? 'none'}`
+        + ` against host ${req.headers.host ?? req.headers[':authority'] ?? 'none'}`);
       return sendJSON(res, 403, { error: 'that did not come from this page' });
     }
 

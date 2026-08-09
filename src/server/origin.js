@@ -16,7 +16,13 @@ export function sameOrigin(req) {
   const origin = req.headers?.origin;
   if (!origin) return true;
 
-  const host = req.headers.host;
+  /**
+   * HTTP/2 has no `Host` header — the authority is a pseudo-header, and Node's
+   * compatibility layer does not synthesise one. Vite serves TLS over HTTP/2,
+   * which is what `npm run dev:lan` does, so without this every state-changing
+   * request over HTTPS is refused as though it came from somewhere else.
+   */
+  const host = req.headers.host ?? req.headers[':authority'] ?? req.authority;
   if (!host) return false;
 
   try {
