@@ -1,5 +1,5 @@
 /**
- * Stands in for `claude`, `codex`, `opencode` and `grok` — same flags, same
+ * Stands in for `claude`, `codex`, `opencode`, `grok` and `muse` — same flags, same
  * output shapes, no model behind it. Which one it is playing comes first on the
  * command line, and what it does comes from the task text itself:
  *
@@ -23,9 +23,18 @@ function said(text) {
       return JSON.stringify({ type: 'text', sessionID: 'fake-session', part: { type: 'text', text } });
     case 'grok':
       return JSON.stringify({ text, stopReason: 'end_turn', sessionId: 'fake-session' });
+    case 'muse':
+      return JSON.stringify(record(3, 'agent_end', {
+        type: 'result', subtype: 'success', is_error: false, result: text,
+      }));
     default:
       return JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text } });
   }
+}
+
+/** One line of Muse's event log: a record about the run, around the event. */
+function record(seq, payloadType, payload) {
+  return { seq, at: '2026-08-09T12:00:00Z', type: 'event', durable: true, payloadType, payload };
 }
 
 if (/\bfail\b/.test(task)) {
@@ -62,6 +71,21 @@ if (/\bsleep\b/.test(task)) {
     sessionId: 'fake-session',
     num_turns: 2,
   })}\n`);
+} else if (shape === 'muse') {
+  const lines = [
+    record(1, 'agent_start', { type: 'agent_start', session_id: 'fake-session' }),
+    record(2, 'message_update', { type: 'message_update', message: { content: [{ type: 'text', text: 'on it' }] } }),
+    record(3, 'message_end', { type: 'message_end', message: { content: [{ type: 'text', text: `muse did: ${task}` }] } }),
+    record(4, 'agent_end', {
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      num_turns: 2,
+      session_id: 'fake-session',
+      result: `muse did: ${task}`,
+    }),
+  ];
+  process.stdout.write(`${lines.map((line) => JSON.stringify(line)).join('\n')}\n`);
 } else {
   const lines = [
     { type: 'thread.started', thread_id: 'fake-thread' },

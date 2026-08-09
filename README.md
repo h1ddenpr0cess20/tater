@@ -37,8 +37,9 @@ one browser — but the panel and the storage behind it are wired, so a tool the
 session learns to declare shows up there with a switch of its own.
 
 `connectors` is where you hand Tater a coding agent. Switch on Claude Code,
-Codex, OpenCode or Grok Build, point it at a repo, and say what you want built:
-Tater reads the task back, dispatches it on a yes, and tells you when it lands.
+Codex, OpenCode, Grok Build or Muse Code, point it at a repo, and say what you
+want built: Tater reads the task back, dispatches it on a yes, and tells you
+when it lands.
 The agent runs headless on the machine serving the page and edits real files, so
 nothing is on until you turn it on — see
 [configuration](docs/configuration.md#connectors).
