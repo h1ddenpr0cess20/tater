@@ -4,7 +4,8 @@ A voice agent rendered as a potato. Tater is russet and lumpy, and rude about
 it: he stands on his end and rocks where he is, walks a
 short way out and back while he talks, lies down and spins while he thinks, and
 squashes in time with whoever is making sound — all of it driven by a live
-OpenAI Realtime call. He remembers what you tell him to, between calls.
+OpenAI Realtime call. He remembers what you tell him to, between calls, and
+hands work off to a coding agent.
 
 ![Tater in a desktop browser](docs/screenshots/desktop.png)
 
@@ -41,6 +42,12 @@ Tater reads the task back, dispatches it on a yes, and tells you when it lands.
 The agent runs headless on the machine serving the page and edits real files, so
 nothing is on until you turn it on — see
 [configuration](docs/configuration.md#connectors).
+
+![The connectors panel, with Claude Code and Codex switched on](docs/screenshots/connectors.png)
+
+Which agent is on, where it works, and how much it is allowed to do are all in
+the panel, and take effect without a restart. What each one runs is not:
+choosing the binary this server executes stays in the environment.
 
 The log keeps every conversation. `continue` on one picks it back up: the call is
 dialled again with those turns handed over as context, and what you say from
