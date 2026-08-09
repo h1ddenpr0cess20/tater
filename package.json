@@ -2,7 +2,7 @@
   "name": "tater",
   "version": "0.1.0",
   "private": true,
-  "description": "A cooking and nutrition voice agent rendered as a potato, driven by an OpenAI Realtime call",
+  "description": "A rude potato voice agent, driven by an OpenAI Realtime call",
   "type": "module",
   "engines": {
     "node": ">=22.12"

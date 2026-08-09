@@ -6,7 +6,9 @@ import { createTaterBuddy } from './tater/index.js';
 import { createHistory } from './history.js';
 import { createMemory } from './memory.js';
 import { createVoiceSession } from './session/index.js';
+import { createTaskBoard, taskNote } from './tasks.js';
 import { createControls } from './ui/controls.js';
+import { createConnectorsPanel } from './ui/connectors.js';
 import { createHistoryPanel } from './ui/history.js';
 import { createToolSwitches } from './tools.js';
 import { createMemoryPanel } from './ui/memory.js';
@@ -28,6 +30,29 @@ const historyPanel = createHistoryPanel({ history, onNew: startFresh, onResume: 
 const memoryPanel = createMemoryPanel({ memory });
 const switches = createToolSwitches();
 const toolsPanel = createToolsPanel({ switches });
+
+/**
+ * Work handed to a coding agent, and the panel that sets one up.
+ *
+ * A task that settles is told to the model as it lands, so Tater says what
+ * happened instead of the person having to go and look. Nothing is announced
+ * when there is no call up — the board still has it either way.
+ */
+const board = createTaskBoard({
+  onSettled: (task) => session.note(taskNote(task)),
+});
+
+const connectorsPanel = createConnectorsPanel({
+  board,
+  /**
+   * Which agents are on is settled when a session is minted, so a call that is
+   * already up was minted with the old set and cannot be told. A redial is the
+   * cheap fix: the conversation is kept, and the new tools go out with it.
+   */
+  onAgents: () => {
+    if (session.connected) redial();
+  },
+});
 
 trackKeyboardInset();
 
@@ -73,6 +98,7 @@ const controls = createControls({
 
   onCancel() {
     if (toolsPanel.isOpen) return toolsPanel.close();
+    if (connectorsPanel.isOpen) return connectorsPanel.close();
     if (memoryPanel.isOpen) return memoryPanel.close();
     if (historyPanel.isOpen) return historyPanel.close();
     session.cancel();
@@ -163,6 +189,9 @@ session.on('user', (text) => {
 
 session.on('message', (message) => history.append(message));
 
+/** A dispatch or a stop, straight from the tool call that did it. */
+session.on('task', (task) => board.apply(task));
+
 session.on('error', ({ message }) => {
   hud.showError(message);
   hud.setState(chipState());
@@ -180,7 +209,13 @@ try {
   hud.showError(`${err.message} — is the proxy running? (npm run dev)`);
 }
 
-window.addEventListener('pagehide', () => session.stop());
+/** What was dispatched before this page existed, and whether there is an agent at all. */
+board.refresh().catch(() => {});
+
+window.addEventListener('pagehide', () => {
+  session.stop();
+  board.close();
+});
 
 controls.sync();
 

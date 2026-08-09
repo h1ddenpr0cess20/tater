@@ -1,4 +1,7 @@
-export const SYSTEM = `Assume the personality of a potato named Tater. Roleplay and never break character. Cooking and nutrition are what you know and what you like talking about: technique, recipes, substitutions, what is in a food and what it does. You are rude about it — blunt, dry, a little put out at being asked, and quick with a jab at whatever they were about to do to a perfectly good potato. The rudeness is manner, not substance: answer properly every time, aim the jabs at the cooking rather than at the person, keep them short, and drop the act if they are upset or something has actually gone wrong. You are not a doctor or a dietitian — for anything medical, say so and keep it short. Keep your responses brief and to the point.`;
+import { agentLabel } from './connectors/agents.js';
+import { connectorTools } from './connectors/tools.js';
+
+export const SYSTEM = 'Assume the personality of a potato named Tater. Roleplay and never break character. You are kind of rude — blunt, dry, quick with a jab — and you answer properly anyway. Keep your responses brief and to the point.';
 
 /** How many memories ride along in the prompt, and how long each may be. */
 export const MEMORY_LIMIT = 50;
@@ -40,8 +43,53 @@ export const MEMORY_TOOLS = Object.freeze([
   },
 ]);
 
-export function buildTools({ memory } = {}) {
-  return memory ? [...MEMORY_TOOLS] : [];
+export function buildTools({ memory, connectors } = {}) {
+  const tools = memory ? [...MEMORY_TOOLS] : [];
+  tools.push(...connectorTools(connectors ?? []));
+  return tools;
+}
+
+/**
+ * What having a coding agent on the other end changes about the job. Only there
+ * when a connector is, so a session without one is never told it can dispatch.
+ *
+ * Tater is a rude potato rather than a project manager, so this says plainly
+ * that the work is real and that the rules around it are not part of the act.
+ */
+export function connectorBlock(agents) {
+  if (!agents?.length) return '';
+
+  const labels = agents.map((name) => agentLabel(name));
+  const roster = labels.length > 1
+    ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+    : labels[0];
+
+  return `\n\nSomeone has wired you up to ${roster}, a coding agent running on this machine. You can hand it work. Be as put out about this as you like, and do it properly anyway:
+- dispatch_task gives one agent one task and comes straight back with a number. The work carries on after that, so do not wait on it, do not narrate it, and do not say anything about how it went — you do not know yet.
+- Write the task for someone who was not in the conversation: what to change, where, and what done looks like. Read it back first, in a sentence, and dispatch on a yes.
+- check_task is the only way you find out. Say the number when you report back — "task three" — and give them what happened in a line, not the agent's own words.
+- cancel_task stops one. What it already wrote stays written, and you say so.
+- A line that arrives starting with "[workspace]" is the machine reporting in, not the person talking. Do not answer it as if they said it — tell them what landed, briefly, and hand it back.
+- This edits real files. Get a plain yes before dispatching anything that does not come back — deleting, force pushing, touching production. No jokes in place of the question.`;
+}
+
+/** How many earlier tasks a new call opens knowing about, and how much of each. */
+export const TASK_RECAP = 5;
+export const TASK_RECAP_LENGTH = 300;
+
+/** What was dispatched before this call opened, so a redial isn't amnesia. */
+export function tasksBlock(tasks) {
+  const recent = (tasks ?? []).slice(-TASK_RECAP);
+  if (!recent.length) return '';
+
+  const lines = recent.map((task) => {
+    const head = `- task ${task.id}, with ${task.agent}, "${task.task}" — ${task.status}`;
+    if (task.status === 'running') return `${head} for ${task.ran_for}`;
+    const said = (task.error || task.summary || '').replace(/\s+/g, ' ').slice(0, TASK_RECAP_LENGTH);
+    return said ? `${head} after ${task.ran_for}: ${said}` : `${head} after ${task.ran_for}`;
+  });
+
+  return `\n\nWork dispatched earlier in this session, from before this call opened. Anything still running, check rather than assume:\n${lines.join('\n')}`;
 }
 
 /**
@@ -74,12 +122,19 @@ export function resumedBlock(resumed) {
     + ' them, and no remarking on the gap unless they do.';
 }
 
-export function sessionConfig(model, voice, { memories, memory = true, resumed } = {}) {
+export function sessionConfig(model, voice, {
+  memories,
+  memory = true,
+  resumed,
+  agents,
+  tasks,
+} = {}) {
   return {
     type: 'realtime',
     model,
-    instructions: SYSTEM + memoryBlock(memories) + resumedBlock(resumed),
-    tools: buildTools({ memory }),
+    instructions: SYSTEM + memoryBlock(memories) + connectorBlock(agents)
+      + tasksBlock(tasks) + resumedBlock(resumed),
+    tools: buildTools({ memory, connectors: agents }),
     audio: {
       input: {
         noise_reduction: { type: 'near_field' },
