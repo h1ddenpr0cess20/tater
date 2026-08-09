@@ -1,5 +1,6 @@
 node_modules/
 dist/
+connectors.json
 .env
 .env.local
 Russet Potato 3D.html

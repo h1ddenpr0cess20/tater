@@ -11,6 +11,18 @@ Both `npm run dev` and `npm start` read `.env`.
 | `OPENAI_BASE_URL` | OpenAI | Points the proxy at a gateway or a stub |
 | `PORT` | `5173` | |
 | `SSL_KEY`, `SSL_CERT` | — | Paths to a real certificate; `npm start` then serves HTTPS |
+| `CONNECTORS` | — | Coding agents Tater may hand work to: `claude`, `codex`, `opencode`, `grok` |
+| `CONNECTOR_CWD` | `process.cwd()` | The workspace agents run in |
+| `CONNECTOR_TIMEOUT` | `900` | Seconds before a task is stopped |
+| `CONNECTOR_LIMIT` | `3` | How many tasks may run at once |
+| `CONNECTOR_FILE` | `connectors.json` | Where the panel saves the setup |
+| `CONNECTOR_ANNOUNCE` | `true` | Tell Tater when a task finishes |
+| `<AGENT>_COMMAND` | the CLI's own name | A whole command line, so the CLI can be wrapped |
+| `<AGENT>_MODEL`, `<AGENT>_ARGS`, `<AGENT>_CWD` | — | Per agent |
+| `CLAUDE_PERMISSION_MODE` | `acceptEdits` | |
+| `CODEX_SANDBOX` | `workspace-write` | |
+| `OPENCODE_PERMISSION_MODE` | `default` | |
+| `GROK_PERMISSION_MODE` | `acceptEdits` | |
 
 The picker lists every voice the Realtime API takes. `ash` is the default: dry
 and a little put out, which is the register the persona is written in. `cedar`
@@ -57,16 +69,16 @@ your Docker Hub account isn't `h1ddenpr0cess20`.
 
 ## Tools
 
-Tater has no tools beyond memory. He answers from what the model already knows:
-no web search, no retrieval. Ask him about this morning and he should say he
-doesn't know, which is what the system prompt asks for.
+Tater has no search and no retrieval. He answers from what the model already
+knows — ask him about this morning and he should say he doesn't know, which is
+what the system prompt asks for.
 
-The two exceptions are `remember` and `forget`, which the page executes itself
-against browser storage. Remote MCP servers, which the Realtime API executes on
-its own, would be a few lines in the same place: `sessionConfig()` in
-`src/server/persona.js` already builds the tool list, and anything needing auth
-headers stays in the server-side `/v1/realtime/client_secrets` payload rather
-than in the page.
+What he does have is `remember` and `forget`, which the page executes itself
+against browser storage, and the connectors below, which the server executes.
+Remote MCP servers, which the Realtime API executes on its own, would be a few
+lines in the same place: `sessionConfig()` in `src/server/persona.js` already
+builds the tool list, and anything needing auth headers stays in the
+server-side `/v1/realtime/client_secrets` payload rather than in the page.
 
 ### The tools panel, ahead of the tools
 
@@ -78,6 +90,54 @@ becomes a switch without a change to the panel.
 
 The switches themselves are per browser, kept in `localStorage`, and they can
 only ever take a tool away. What exists stays the server's to decide.
+
+## Connectors
+
+`connectors` opens the panel for the coding agents Tater can hand work to:
+Claude Code, Codex, OpenCode and Grok Build, each run headless, once per task,
+in a workspace directory. Say what you want built, Tater reads the task back,
+and on a yes it goes out to an agent that reads, writes and runs things for
+real.
+
+Nothing is on by default. A connector runs a CLI that edits files on the machine
+serving the page, so it is opt-in there — `CONNECTORS` names the agents to start
+with, and the panel turns them on and off while the server runs. What the panel
+writes goes to `connectors.json` and survives a restart.
+
+One thing is deliberately not editable from the browser: the command each agent
+is run as. That is the difference between configuring a tool and choosing which
+binary this server executes, and the second one does not belong to anything a
+page can reach. It comes from `<AGENT>_COMMAND`, and it takes a whole command
+line, so `docker exec -w /work dev codex` wraps the CLI as well as names it.
+
+Permission modes come from each CLI, safest first, and the panel warns on the
+ones that can act outside the workspace. The agents inherit the server's
+environment minus `OPENAI_API_KEY` — the key that dials the call is not the
+agent's to spend.
+
+Three tools do the work: `dispatch_task` hands one task to one agent and returns
+a number immediately, `check_task` reports where it stands, and `cancel_task`
+stops it. Whatever an agent already wrote to disk stays written when a task is
+stopped or times out.
+
+### How a tool call gets to the server
+
+Tater's call runs browser-to-OpenAI over WebRTC, so a tool call the model makes
+arrives in the page and nowhere else. The page hands the connector ones back to
+the server at `POST /api/connectors/run`, which is the only reason this server
+can dispatch at all. Anything that changes something — that route, and saving
+the setup — is refused unless it came from this page, since there are no
+accounts here and these routes spawn processes that edit files.
+
+The panel polls `/api/tasks` while something is running, for the same reason:
+there is no socket back from the server to push a status down. A task that
+settles is told to the model as it lands, as a line marked `[workspace]` so it
+is not mistaken for the person talking. `CONNECTOR_ANNOUNCE=false` keeps the
+board and drops the telling.
+
+Which agents are on is settled when a session is minted, so switching one on
+mid-call redials — the conversation is kept, and the new tool list goes out with
+it.
 
 ## The log and the memory
 

@@ -26,6 +26,25 @@ translation and speech-to-text. Both pickers are pinned into the client secret,
 so changing the model or the voice mid-call hangs up and dials again, and the
 conversation doesn't carry over.
 
+### The connectors, against the grain of that
+
+Everything above keeps work out of the proxy: the audio bypasses it and the
+events go straight to the page. The connectors are the one thing that cannot
+follow, because the files an agent edits are the server's, not the browser's.
+
+So the model's tool call lands in the page — there is nowhere else for it to
+land — and the page hands the connector ones back to `POST /api/connectors/run`.
+The registry that answers is made once per server rather than once per call, so
+a dispatched task outlives the call that sent it out and the panel can see one
+when there is no call up at all. Which agents are on is baked into the client
+secret with everything else, so switching one on mid-call redials.
+
+That inversion costs the push the other way. There is no socket from the server
+down to the page, so the board polls `/api/tasks` while anything is running, and
+a task that settles is injected into the conversation as a `[workspace]` line
+rather than pushed as an event. It also means `/api/*` has state-changing routes
+for the first time, which is what `origin.js` is for.
+
 The proxy is connect-style middleware rather than a server, so there's only one
 implementation of `/api/*`: `vite.config.js` mounts it in development and
 `src/server/app.js` mounts it in front of the static handler in production. No
@@ -106,10 +125,11 @@ src/
   client/
     main.js             The wiring, and nothing else
     styles.css          The HUD around Tater
-    api.js              The proxy's two endpoints, as functions
+    api.js              The server's endpoints, as functions
     history.js          Past conversations in localStorage, and picking one up
     memory.js           What it remembers between calls, in localStorage
     tools.js            Which of the server's tools this browser switched off
+    tasks.js            The work agents are doing, mirrored and polled
     tater/              Geometry and animation. Knows nothing about transports
       index.js            The controller, the rig and the per-frame loop
       moods.js            Targets per conversational state
@@ -123,7 +143,7 @@ src/
       index.js            Lifecycle: mic, secret, connect, meter, tear down
       webrtc.js           Peer connection, data channel, SDP handshake
       events.js           Realtime server events → this vocabulary
-      tools.js            remember/forget, run in the page
+      tools.js            remember/forget in the page; the rest routed to the server
       metering.js         Two analysers → one 0..1 number per frame
       emitter.js
     ui/
@@ -131,6 +151,7 @@ src/
       history.js          The log panel behind `log`, and its `continue`
       memory.js           The memory panel behind the `memory` button
       tools.js            The tool switches behind the `tools` button — empty for now
+      connectors.js       The agent setup and the work board, behind `connectors`
       controls.js         Mic (tap mutes, hold hangs up), field, send, pickers
       viewport.js         Keeps the composer above the on-screen keyboard
     vendor/
@@ -138,11 +159,18 @@ src/
   server/
     index.js            Entry point
     app.js              The middleware chain
-    api.js              /api/models + /api/session
+    api.js              /api/models + /api/session, and the connector routes
     openai.js           The two calls it makes
     persona.js          Who Tater is, and the session config
+    origin.js           Who is allowed to ask for a change
     config.js           The environment, resolved once
     static.js           Hosting for dist/ — production only
+    connectors/         Coding agents, and the tasks handed to them
+      index.js            The registry: settings, tools, dispatch
+      agents.js           Each CLI as a command line, and how to read it back
+      settings.js         What the panel may change, checked and saved
+      tasks.js            The child processes, and their status
+      tools.js            The three function tools, as the model sees them
 docs/                   These notes, configuration, policies, screenshots
 test/                   node:test, against a stub OpenAI
 .github/workflows/      CI (lint, tests, build smoke test), CodeQL, Docker publish

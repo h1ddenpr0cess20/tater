@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createApiMiddleware } from './api.js';
 import { loadConfig } from './config.js';
+import { createConnectors } from './connectors/index.js';
 import { createStaticMiddleware } from './static.js';
 
 const DIST = fileURLToPath(new URL('../../dist', import.meta.url));
@@ -29,6 +30,21 @@ export function chain(...middleware) {
 }
 
 export function createApp(config = loadConfig(), { root = DIST, tls = null } = {}) {
-  const handle = chain(createApiMiddleware(config), createStaticMiddleware(root));
-  return tls ? createSecureServer(tls, handle) : createServer(handle);
+  /**
+   * One registry per server, not per request: a dispatched task has to outlive
+   * the call that sent it out, and the panel has to be able to see one when
+   * there is no call up at all.
+   */
+  const connectors = createConnectors(config);
+
+  const handle = chain(createApiMiddleware(config, connectors), createStaticMiddleware(root));
+  const server = tls ? createSecureServer(tls, handle) : createServer(handle);
+
+  /** Nothing an agent is doing outlives the server that spawned it. */
+  server.on('close', () => connectors.close());
+
+  /** The panel edits these while the server runs, so the boot log reads them here. */
+  server.connectors = connectors;
+
+  return server;
 }

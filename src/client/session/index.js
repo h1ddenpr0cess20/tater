@@ -61,7 +61,13 @@ function micUnavailable() {
 export function createVoiceSession({ model, voice, memory } = {}) {
   const { on, emit } = createEmitter();
   const messages = [];
-  const tools = memory ? createTools({ memory }) : {};
+  /**
+   * The connector tools are always routed, whether or not an agent is on. What
+   * the model may call is the session's to declare, and the server declares it
+   * when it mints one — so a tool that arrives here was offered, and answering
+   * it beats leaving the model waiting on its own call.
+   */
+  const tools = createTools({ memory });
 
   let current = model;
   let currentVoice = voice;
@@ -95,25 +101,36 @@ export function createVoiceSession({ model, voice, memory } = {}) {
    * Answers a function call the model made. The result has to go back as a
    * `function_call_output` item followed by a fresh `response.create` — without
    * the second frame the model waits forever on its own tool.
+   *
+   * A connector tool is a round trip to the server, so this can take long
+   * enough for the call behind it to have gone. The generation it started in is
+   * what decides whether the answer still has anywhere to go.
    */
-  function runTool({ call_id: callId, name, args }) {
+  async function runTool({ call_id: callId, name, args }) {
     const tool = tools[name];
     if (!tool) return;
 
     emit('tool', toolLabel(name));
+    const mine = generation;
+
     let output;
     try {
-      output = tool(args);
+      output = await tool(args);
     } catch (err) {
       output = { ok: false, error: err?.message ?? String(err) };
     }
+    if (mine !== generation || !call?.open) return;
 
-    call?.send({
+    call.send({
       type: 'conversation.item.create',
       item: { type: 'function_call_output', call_id: callId, output: JSON.stringify(output) },
     });
-    call?.send({ type: 'response.create' });
-    emit('memory', output);
+    call.send({ type: 'response.create' });
+
+    /** A dispatch or a stop comes back as the task itself: the board wants it
+     *  now rather than at the next poll. */
+    if (output?.id && output?.status) emit('task', output);
+    else emit('memory', output);
   }
 
   const events = createEventHandler({
@@ -124,6 +141,30 @@ export function createVoiceSession({ model, voice, memory } = {}) {
     getModel: () => current,
     onFunctionCall: runTool,
   });
+
+  /**
+   * What the workspace has to say, waiting for a gap.
+   *
+   * Cutting into a response to announce that a task finished is worse than
+   * saying it a moment later, and the API takes one response at a time — so a
+   * note queues until the model is not already answering, and goes up as a
+   * message rather than as anything the person said. The "[workspace]" marker
+   * is what the instructions tell the model to read it by.
+   */
+  const notes = [];
+
+  function flushNotes() {
+    if (!notes.length || !call?.open || events.responding) return;
+    const text = notes.splice(0).join('\n');
+    call.send({
+      type: 'conversation.item.create',
+      item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
+    });
+    call.send({ type: 'response.create' });
+    setState('thinking');
+  }
+
+  on('done', flushNotes);
 
   const meter = createMeter(
     () => (state === 'speaking' ? outAnalyser : state === 'listening' ? micAnalyser : null),
@@ -199,6 +240,9 @@ export function createVoiceSession({ model, voice, memory } = {}) {
     generation++;
     const closing = call;
     call = null;
+    /** A note that never found a gap dies with the call it was about — it would
+     *  otherwise surface in the next one, long after it was news. */
+    notes.length = 0;
     meter.stop();
     closing?.close();
     micStream?.getTracks().forEach((track) => track.stop());
@@ -237,6 +281,20 @@ export function createVoiceSession({ model, voice, memory } = {}) {
     get context() { return context; },
     set context(turns) { context = Array.isArray(turns) ? turns : []; },
     get messages() { return messages; },
+
+    /**
+     * Something the workspace has to say, for the model to pass on. It waits
+     * for a gap and is dropped if there is no call up — an agent that finished
+     * while nobody was talking to Tater is the panel's news, not an
+     * interruption to save up for the next conversation.
+     */
+    note(text) {
+      const line = String(text ?? '').trim();
+      if (!line || !call?.open) return false;
+      notes.push(line);
+      flushNotes();
+      return true;
+    },
     get connected() { return call?.open ?? false; },
     get busy() { return events.responding; },
     get state() { return state; },

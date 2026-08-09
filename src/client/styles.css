@@ -4,6 +4,10 @@
   --listening: #7fc9f0;
   --thinking: #b79bf5;
   --speaking: #f2c777;
+  --error: #d97757;
+  /** What a `<select>` sits on once `appearance: none` takes its own away. */
+  --panel: #1a1817;
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0h8L4 5z' fill='rgba(255,255,255,.45)'/%3E%3C/svg%3E");
   --stack: min(620px, 100%);
   --gutter: 24px;
   --keyboard-inset: 0px;
@@ -273,7 +277,8 @@ three-d-stage {
 
 #history,
 #memory,
-#toolbox {
+#toolbox,
+#connectors {
   position: fixed;
   z-index: 6;
   left: 50%;
@@ -290,11 +295,13 @@ three-d-stage {
 }
 #history[hidden],
 #memory[hidden],
-#toolbox[hidden] { display: none; }
+#toolbox[hidden],
+#connectors[hidden] { display: none; }
 
 #history-head,
 #memory-head,
-#toolbox-head {
+#toolbox-head,
+#connectors-head {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -304,10 +311,13 @@ three-d-stage {
 }
 #history-head .chip:first-child,
 #memory-head .chip:first-child,
-#toolbox-head .chip:first-child { flex: 1; }
+#toolbox-head .chip:first-child,
+#connectors-head .chip:first-child { flex: 1; }
 #history-head button,
 #memory-head button,
 #toolbox-head button,
+#connectors-head button,
+#connectors .task button,
 #memory-add button {
   appearance: none;
   cursor: pointer;
@@ -321,9 +331,13 @@ three-d-stage {
 #history-head button:hover,
 #memory-head button:hover,
 #toolbox-head button:hover,
+#connectors-head button:hover,
+#connectors .task button:hover,
 #memory-add button:hover { background: rgba(255, 255, 255, .14); color: var(--ink); }
 #history-head button:disabled,
-#memory-head button:disabled { opacity: .35; cursor: default; }
+#memory-head button:disabled,
+#connectors-head button:disabled,
+#connectors .task button:disabled { opacity: .35; cursor: default; }
 #history-head button:disabled:hover,
 #memory-head button:disabled:hover { background: rgba(255, 255, 255, .06); color: rgba(255, 255, 255, .6); }
 #history-head #history-new {
@@ -345,7 +359,8 @@ three-d-stage {
 #memory-clear.armed { color: #ff9b9b; }
 #history :focus-visible,
 #memory :focus-visible,
-#toolbox :focus-visible {
+#toolbox :focus-visible,
+#connectors :focus-visible {
   outline: 2px solid rgba(255, 255, 255, .55);
   outline-offset: 2px;
 }
@@ -409,7 +424,8 @@ three-d-stage {
 
 #history .empty,
 #memory .empty,
-#toolbox .empty {
+#toolbox .empty,
+#connectors .empty {
   margin: 18px 0;
   font: 400 14px/1.6 var(--sans);
   color: rgba(255, 255, 255, .34);
@@ -510,10 +526,9 @@ three-d-stage {
 @media (max-width: 640px) {
   :root { --gutter: 14px; }
 
-  #status {
-    top: calc(env(safe-area-inset-top) + 14px);
-  }
+  /* The tabs own the top line — the status sits under them, not through them. */
   #tabs { top: calc(env(safe-area-inset-top) + 4px); }
+  #status { top: calc(env(safe-area-inset-top) + 54px); }
 
   #composer { flex-wrap: wrap; }
   #options {
@@ -562,3 +577,182 @@ three-d-stage {
     transition-duration: .01ms;
   }
 }
+
+/* ── connectors ─────────────────────────────────────────────────────────── */
+
+#connectors-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 16px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .18) transparent;
+}
+
+#connectors-setup { padding: 14px 0 4px; }
+#connectors .agent {
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+#connectors .agent[data-on="false"] { opacity: .55; }
+#connectors .agent > header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, .38);
+}
+#connectors .agent-name { color: rgba(255, 255, 255, .82); }
+#connectors .agent > header .meta {
+  margin-left: auto;
+  min-width: 0;
+  color: rgba(255, 255, 255, .22);
+  overflow-wrap: anywhere;
+}
+#connectors .switch {
+  appearance: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: none;
+  color: rgba(255, 255, 255, .34);
+  transition: background .2s, color .2s, border-color .2s;
+}
+#connectors .switch[aria-pressed="true"] {
+  background: var(--listening);
+  border-color: var(--listening);
+  color: var(--void);
+}
+/* Loud modes are the one thing here worth a warning rather than a tooltip. */
+#connectors .agent-warn:not(:empty) {
+  display: block;
+  margin-top: 8px;
+  font: 400 12px/1.5 var(--sans);
+  color: var(--error);
+}
+
+#connectors .agent-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+/* The setup row up top: the path gets the full width, the numbers share one. */
+#connectors .agent-fields.wide {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+#connectors .agent-fields.wide > :first-child { grid-column: 1 / -1; }
+#connectors .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: rgba(255, 255, 255, .3);
+}
+#connectors .field input,
+#connectors .field select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: var(--ink);
+  font: 400 13px/1.3 var(--sans);
+  transition: border-color .2s;
+}
+/* `appearance: none` takes the native arrow with it — draw one back on. */
+#connectors .field select {
+  cursor: pointer;
+  padding-right: 28px;
+  background-image: var(--caret);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  font: 600 11px/1.3 var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#connectors .field select option {
+  background: var(--panel);
+  color: var(--ink);
+  letter-spacing: normal;
+  text-transform: none;
+}
+#connectors .field input::placeholder { color: rgba(255, 255, 255, .26); }
+#connectors .field input:hover,
+#connectors .field select:hover { border-color: rgba(255, 255, 255, .28); }
+#connectors .field input:focus,
+#connectors .field select:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
+
+#connectors-note {
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, .38);
+  opacity: 0;
+  transition: opacity .2s;
+}
+#connectors-note.visible { opacity: 1; }
+#connectors-note.error { color: var(--error); }
+
+#connectors-tasks { margin-top: 18px; }
+#connectors .section {
+  display: block;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .3);
+}
+#connectors-save:not(:disabled) { color: var(--listening); }
+
+#connectors-toggle.live { color: var(--listening); border-color: rgba(127, 201, 240, .4); }
+
+#connectors .task { padding: 14px 0; }
+#connectors .task + .task { border-top: 1px solid rgba(255, 255, 255, .08); }
+#connectors .task > header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, .38);
+}
+#connectors .task-who { color: rgba(255, 255, 255, .62); }
+#connectors .task-state { color: rgba(255, 255, 255, .34); }
+#connectors .task[data-status="running"] .task-state { color: var(--listening); }
+#connectors .task[data-status="done"] .task-state { color: var(--speaking); }
+#connectors .task[data-status="failed"] .task-state,
+#connectors .task[data-status="timeout"] .task-state { color: var(--error); }
+#connectors .task > header button { margin-left: auto; }
+
+/* Where it actually ran, from the task itself — not from asking the agent. */
+#connectors .task-where {
+  margin: 0 0 6px;
+  font: 400 12px/1.5 var(--mono);
+  color: rgba(255, 255, 255, .28);
+  overflow-wrap: anywhere;
+}
+#connectors .task-what {
+  margin: 0;
+  font: 400 14px/1.6 var(--sans);
+  color: rgba(255, 255, 255, .9);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+}
+#connectors .task-said {
+  margin: 8px 0 0;
+  font: 400 13px/1.6 var(--sans);
+  color: rgba(255, 255, 255, .48);
+  text-wrap: pretty;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-height: 8.4em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#connectors .task-said.error { color: var(--error); }
+#connectors .empty.error { color: var(--error); }

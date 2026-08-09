@@ -1,7 +1,7 @@
 # Tater
 
-A cooking and nutrition voice agent rendered as a potato. Tater is russet and
-lumpy, and rude about food: he stands on his end and rocks where he is, walks a
+A voice agent rendered as a potato. Tater is russet and lumpy, and rude about
+it: he stands on his end and rocks where he is, walks a
 short way out and back while he talks, lies down and spins while he thinks, and
 squashes in time with whoever is making sound — all of it driven by a live
 OpenAI Realtime call. He remembers what you tell him to, between calls.
@@ -30,10 +30,17 @@ back on. It also switches itself off after a minute of silence, and the call
 survives that too. Holding the mic down is the hang-up — a ring closes around it
 while you hold, and the call ends when it lands.
 
-`tools` is where the switches for Tater's tools will be. It is empty today —
-memory is all there is, and it has its own switch — but the panel and the
-storage behind it are wired, so a tool the session learns to declare shows up
-there with a switch of its own.
+`tools` is where the per-call switches will be. It is empty today — memory has
+its own switch, and the connectors answer for the whole server rather than for
+one browser — but the panel and the storage behind it are wired, so a tool the
+session learns to declare shows up there with a switch of its own.
+
+`connectors` is where you hand Tater a coding agent. Switch on Claude Code,
+Codex, OpenCode or Grok Build, point it at a repo, and say what you want built:
+Tater reads the task back, dispatches it on a yes, and tells you when it lands.
+The agent runs headless on the machine serving the page and edits real files, so
+nothing is on until you turn it on — see
+[configuration](docs/configuration.md#connectors).
 
 The log keeps every conversation. `continue` on one picks it back up: the call is
 dialled again with those turns handed over as context, and what you say from

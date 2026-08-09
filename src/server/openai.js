@@ -2,6 +2,11 @@ import { sessionConfig } from './persona.js';
 
 const NOT_CONVERSATIONAL = /translate|whisper|transcribe|tts/;
 
+/**
+ * The connectors are read per mint rather than captured once: the panel can
+ * switch an agent on between two calls, and the session that goes out has to
+ * carry the tools that were on when it was minted.
+ */
 export function createOpenAIClient({
   baseUrl,
   apiKey,
@@ -10,7 +15,7 @@ export function createOpenAIClient({
   voices,
   secretTtl,
   memory = true,
-}) {
+}, connectors = null) {
   async function request(path, init = {}) {
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
@@ -52,7 +57,13 @@ export function createOpenAIClient({
         method: 'POST',
         body: JSON.stringify({
           expires_after: { anchor: 'created_at', seconds: secretTtl },
-          session: sessionConfig(chosenModel, chosen, { memories, memory, resumed: Boolean(resumed) }),
+          session: sessionConfig(chosenModel, chosen, {
+            memories,
+            memory,
+            resumed: Boolean(resumed),
+            agents: connectors?.agents ?? [],
+            tasks: connectors?.tasks() ?? [],
+          }),
         }),
       });
       return {
