@@ -6,6 +6,11 @@ short way out and back while he talks, lies down and spins while he thinks, and
 squashes in time with whoever is making sound — all of it driven by a live
 OpenAI Realtime call. He remembers what you tell him to, between calls.
 
+![Tater in a desktop browser](docs/screenshots/desktop.png)
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="Tater on a phone" width="300">
+</p>
 
 ## Run
 
