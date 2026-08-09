@@ -27,6 +27,7 @@ const CONNECTOR_ENV = Object.freeze({
   codex: { prefix: 'CODEX', mode: 'CODEX_SANDBOX', defaultMode: 'workspace-write' },
   opencode: { prefix: 'OPENCODE', mode: 'OPENCODE_PERMISSION_MODE', defaultMode: 'default' },
   grok: { prefix: 'GROK', mode: 'GROK_PERMISSION_MODE', defaultMode: 'acceptEdits' },
+  muse: { prefix: 'MUSE', mode: 'MUSE_APPROVAL', defaultMode: 'default' },
 });
 
 /** How long an agent may work before it is stopped, and how many may at once. */

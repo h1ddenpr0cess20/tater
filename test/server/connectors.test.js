@@ -71,12 +71,13 @@ describe('which agents are connected', () => {
   });
 
   it('defaults each agent to its own CLI and its safer mode', () => {
-    const { connectors } = loadConfig({ CONNECTORS: 'claude, codex, opencode, grok' });
+    const { connectors } = loadConfig({ CONNECTORS: 'claude, codex, opencode, grok, muse' });
     assert.deepEqual(connectors.agents.claude.command, ['claude']);
     assert.equal(connectors.agents.claude.mode, 'acceptEdits');
     assert.equal(connectors.agents.codex.mode, 'workspace-write');
     assert.equal(connectors.agents.opencode.mode, 'default');
     assert.equal(connectors.agents.grok.mode, 'acceptEdits');
+    assert.equal(connectors.agents.muse.mode, 'default');
     assert.equal(connectors.timeoutMs, 900_000);
     assert.equal(connectors.limit, 3);
   });
@@ -119,8 +120,8 @@ describe('which agents are connected', () => {
 
   it('describes the agents it is switched off as well as on', () => {
     const { agents, cwd } = registry().settings();
-    assert.deepEqual(agents.map((a) => a.name), ['claude', 'codex', 'opencode', 'grok']);
-    assert.deepEqual(agents.map((a) => a.enabled), [false, false, false, false]);
+    assert.deepEqual(agents.map((a) => a.name), ['claude', 'codex', 'opencode', 'grok', 'muse']);
+    assert.deepEqual(agents.map((a) => a.enabled), [false, false, false, false, false]);
     assert.ok(agents[0].modes.includes('acceptEdits'));
     assert.ok(agents[1].modes.includes('workspace-write'));
     assert.equal(cwd, process.cwd());
@@ -223,6 +224,24 @@ describe('handing work to an agent', () => {
     assert.match(done.summary, /claude did: tidy the sauce/);
   });
 
+  it('runs the one that takes its task last and its events in an envelope', async () => {
+    const connectors = registry(wired({
+      CONNECTORS: 'muse',
+      MUSE_COMMAND: `node "${FAKE}" muse`,
+      MUSE_APPROVAL: 'yolo',
+    }));
+
+    const dispatched = connectors.run('dispatch_task', { task: 'peel the potatoes' });
+    assert.equal(dispatched.agent, 'muse');
+
+    const done = await until(() => {
+      const task = connectors.run('check_task', { id: dispatched.id });
+      return task.status !== 'running' ? task : null;
+    });
+    assert.equal(done.status, 'done');
+    assert.match(done.summary, /muse did: peel the potatoes/);
+  });
+
   it('reports a failure as one, with what the agent said', async () => {
     const connectors = registry(wired());
     const { id } = connectors.run('dispatch_task', { task: 'fail on purpose' });
@@ -314,7 +333,7 @@ describe('the connector API', () => {
     await withServer(middleware, async (request) => {
       const read = await request('/api/connectors');
       assert.equal(read.status, 200);
-      assert.equal(read.body.agents.length, 4);
+      assert.equal(read.body.agents.length, 5);
 
       const saved = await request('/api/connectors', {
         method: 'PUT',
@@ -497,12 +516,24 @@ describe('reading what an agent printed', () => {
       'done it',
     );
     assert.equal(parse('grok', JSON.stringify({ text: 'done it' })).summary, 'done it');
+    assert.equal(
+      parse('muse', JSON.stringify({ seq: 4, type: 'event', payloadType: 'agent_end', payload: { type: 'result', result: 'done it' } })).summary,
+      'done it',
+    );
   });
 
   it('reads an error as one rather than as a summary', () => {
     const claude = parse('claude', JSON.stringify({ type: 'result', is_error: true, result: 'it broke' }));
     assert.equal(claude.error, 'it broke');
     assert.equal(claude.summary, undefined);
+  });
+
+  it('reads a whole message when the run ended without a result event', () => {
+    const stream = [
+      JSON.stringify({ seq: 1, type: 'event', payloadType: 'message_update', payload: { type: 'message_update', message: { content: [{ type: 'text', text: 'half of ' }] } } }),
+      JSON.stringify({ seq: 2, type: 'event', payloadType: 'message_end', payload: { type: 'message_end', message: { content: [{ type: 'text', text: 'done it' }] } } }),
+    ].join('\n');
+    assert.equal(parse('muse', stream).summary, 'done it', 'the finished message, not the last delta');
   });
 
   it('keeps the tail of the output when it recognises no shape at all', () => {

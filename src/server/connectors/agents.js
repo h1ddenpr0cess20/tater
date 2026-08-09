@@ -121,6 +121,43 @@ export const AGENTS = Object.freeze({
       return { summary: trim(fallback(stdout, stderr)) };
     },
   },
+
+  muse: {
+    label: 'Muse Code',
+    command: 'muse',
+    /**
+     * It has no permission modes of its own: approval prompts and an OS-level
+     * sandbox are both on out of the box, and a headless run has nobody to
+     * answer a prompt. `--yolo` drops both at once — the only switch there is.
+     */
+    modes: ['default', 'yolo'],
+    defaultMode: 'default',
+    /**
+     * `exec` is its headless path: one prompt, JSONL events, then exit. It
+     * takes no directory flag — it works on the directory it was started in,
+     * which is the workspace, since that is where the task is spawned.
+     */
+    args({ task, model, mode, extra }) {
+      return [
+        'exec',
+        '--json',
+        ...(mode === 'yolo' ? ['--yolo'] : []),
+        ...(model ? ['--model', model] : []),
+        ...extra,
+        task,
+      ];
+    },
+    parse(stdout, stderr) {
+      const events = jsonObjects(stdout).map(payload);
+      const last = findLast(events, (o) => typeof o.result === 'string');
+      if (last) {
+        return last.is_error
+          ? { error: trim(last.result) || 'the run reported an error' }
+          : { summary: trim(last.result) };
+      }
+      return { summary: trim(lastMessageText(events) || fallback(stdout, stderr)) };
+    },
+  },
 });
 
 export const AGENT_NAMES = Object.freeze(Object.keys(AGENTS));
@@ -219,6 +256,46 @@ function lastPartText(objects) {
     if (typeof part.text === 'string' && part.text.trim()) found = part.text;
   }
   return found;
+}
+
+/**
+ * What happened, out of the envelope Muse records it in. Each line of its log
+ * is a record about the run — a sequence number, a timestamp, whether it is
+ * durable — wrapped around the event itself, and it is the inside that says
+ * what was said.
+ */
+function payload(event) {
+  if (!isObject(event.payload)) return event;
+  return { ...event.payload, type: event.payload.type ?? event.payloadType ?? event.type };
+}
+
+const MESSAGE_EVENT = /message|assistant|result/;
+const PARTIAL_EVENT = /update|delta|start/;
+
+/**
+ * The last whole thing Muse said, out of a stream of events about its own
+ * turn. What arrives mid-message is a piece of one, so only the events that
+ * finish a message count — a delta on its own would be the last few words.
+ */
+function lastMessageText(objects) {
+  let found = '';
+  for (const object of objects) {
+    const type = String(object.type ?? '');
+    if (!MESSAGE_EVENT.test(type) || PARTIAL_EVENT.test(type)) continue;
+    const message = isObject(object.message) ? object.message : object;
+    const text = typeof message.text === 'string' ? message.text : partsText(message.content);
+    if (text.trim()) found = text;
+  }
+  return found;
+}
+
+/** The text of a message that came in parts rather than as a string. */
+function partsText(content) {
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((part) => isObject(part) && typeof part.text === 'string')
+    .map((part) => part.text)
+    .join('');
 }
 
 /** No format we recognise: keep the end of what it actually printed. */

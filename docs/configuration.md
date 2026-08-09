@@ -11,7 +11,7 @@ Both `npm run dev` and `npm start` read `.env`.
 | `OPENAI_BASE_URL` | OpenAI | Points the proxy at a gateway or a stub |
 | `PORT` | `5173` | |
 | `SSL_KEY`, `SSL_CERT` | — | Paths to a real certificate; `npm start` then serves HTTPS |
-| `CONNECTORS` | — | Coding agents Tater may hand work to: `claude`, `codex`, `opencode`, `grok` |
+| `CONNECTORS` | — | Coding agents Tater may hand work to: `claude`, `codex`, `opencode`, `grok`, `muse` |
 | `CONNECTOR_CWD` | `process.cwd()` | The workspace agents run in |
 | `CONNECTOR_TIMEOUT` | `900` | Seconds before a task is stopped |
 | `CONNECTOR_LIMIT` | `3` | How many tasks may run at once |
@@ -23,6 +23,7 @@ Both `npm run dev` and `npm start` read `.env`.
 | `CODEX_SANDBOX` | `workspace-write` | |
 | `OPENCODE_PERMISSION_MODE` | `default` | |
 | `GROK_PERMISSION_MODE` | `acceptEdits` | |
+| `MUSE_APPROVAL` | `default` | `yolo` drops Muse's approval prompts and its sandbox together |
 
 The picker lists every voice the Realtime API takes. `ash` is the default: dry
 and a little put out, which is the register the persona is written in. `cedar`
@@ -94,10 +95,10 @@ only ever take a tool away. What exists stays the server's to decide.
 ## Connectors
 
 `connectors` opens the panel for the coding agents Tater can hand work to:
-Claude Code, Codex, OpenCode and Grok Build, each run headless, once per task,
-in a workspace directory. Say what you want built, Tater reads the task back,
-and on a yes it goes out to an agent that reads, writes and runs things for
-real.
+Claude Code, Codex, OpenCode, Grok Build and Muse Code, each run headless, once
+per task, in a workspace directory. Say what you want built, Tater reads the
+task back, and on a yes it goes out to an agent that reads, writes and runs
+things for real.
 
 Nothing is on by default. A connector runs a CLI that edits files on the machine
 serving the page, so it is opt-in there — `CONNECTORS` names the agents to start

@@ -12,7 +12,7 @@ const STATUS = {
 };
 
 /** The modes that let an agent do more than edit inside its own workspace. */
-const LOUD = /bypass|danger|dontAsk|auto/;
+const LOUD = /bypass|danger|dontAsk|auto|yolo/;
 
 function elapsed(task, now = Date.now()) {
   const seconds = Math.max(0, Math.round(((task.endedAt ?? now) - task.startedAt) / 1000));
