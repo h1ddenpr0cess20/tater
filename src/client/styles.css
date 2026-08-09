@@ -526,10 +526,9 @@ three-d-stage {
 @media (max-width: 640px) {
   :root { --gutter: 14px; }
 
-  #status {
-    top: calc(env(safe-area-inset-top) + 14px);
-  }
+  /* The tabs own the top line — the status sits under them, not through them. */
   #tabs { top: calc(env(safe-area-inset-top) + 4px); }
+  #status { top: calc(env(safe-area-inset-top) + 54px); }
 
   #composer { flex-wrap: wrap; }
   #options {
