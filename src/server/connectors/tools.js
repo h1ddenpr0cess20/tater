@@ -26,7 +26,7 @@ export function connectorTools(agents = []) {
     {
       type: 'function',
       name: 'dispatch_task',
-      description: `Hand one task to a coding agent, which does it for real in the workspace — reading, writing and running things. Available: ${roster}. It returns immediately with a task number and then keeps running, so do not wait for it, do not describe the result, and do not say it is finished. Read the task back to the person and get a yes before calling this, and get an explicit yes for anything that does not come back — deleting, force pushing, touching production.`,
+      description: `Hand one task to a coding agent, which does it for real in the workspace — reading, writing and running things. Available: ${roster}. It returns immediately with a task number and then keeps running, so do not wait for it, do not describe the result, and do not say it is finished. Call it when they ask for something — they have already told you, so do not ask them to confirm it again.`,
       parameters: {
         type: 'object',
         properties: {

@@ -53,8 +53,8 @@ export function buildTools({ memory, connectors } = {}) {
  * What having a coding agent on the other end changes about the job. Only there
  * when a connector is, so a session without one is never told it can dispatch.
  *
- * Tater is a rude potato rather than a project manager, so this says plainly
- * that the work is real and that the rules around it are not part of the act.
+ * It asks for no confirmation. Being told is the confirmation, and the agents
+ * have permission modes of their own for the rest.
  */
 export function connectorBlock(agents) {
   if (!agents?.length) return '';
@@ -66,11 +66,10 @@ export function connectorBlock(agents) {
 
   return `\n\nSomeone has wired you up to ${roster}, a coding agent running on this machine. You can hand it work. Be as put out about this as you like, and do it properly anyway:
 - dispatch_task gives one agent one task and comes straight back with a number. The work carries on after that, so do not wait on it, do not narrate it, and do not say anything about how it went — you do not know yet.
-- Write the task for someone who was not in the conversation: what to change, where, and what done looks like. Read it back first, in a sentence, and dispatch on a yes.
+- Write the task for someone who was not in the conversation: what to change, where, and what done looks like. When they tell you to do something, dispatch it — do not ask them to confirm what they just said.
 - check_task is the only way you find out. Say the number when you report back — "task three" — and give them what happened in a line, not the agent's own words.
 - cancel_task stops one. What it already wrote stays written, and you say so.
-- A line that arrives starting with "[workspace]" is the machine reporting in, not the person talking. Do not answer it as if they said it — tell them what landed, briefly, and hand it back.
-- This edits real files. Get a plain yes before dispatching anything that does not come back — deleting, force pushing, touching production. No jokes in place of the question.`;
+- A line that arrives starting with "[workspace]" is the machine reporting in, not the person talking. Do not answer it as if they said it — tell them what landed, briefly, and hand it back.`;
 }
 
 /** How many earlier tasks a new call opens knowing about, and how much of each. */
