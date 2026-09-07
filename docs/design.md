@@ -148,10 +148,11 @@ src/
       emitter.js
     ui/
       hud.js              Status chip, transcript, caption
-      history.js          The log panel behind `log`, and its `continue`
-      memory.js           The memory panel behind the `memory` button
-      tools.js            The tool switches behind the `tools` button — empty for now
-      connectors.js       The agent setup and the work board, behind `connectors`
+      menu.js             The corner menu, and the list of panels it drops
+      history.js          The log panel behind `log` in the menu, and its `continue`
+      memory.js           The memory panel behind `memory` in the menu
+      tools.js            The tool switches behind `tools` in the menu — empty for now
+      connectors.js       The setup and the work board, behind `connectors` in the menu
       controls.js         Mic (tap mutes, hold hangs up), field, send, pickers
       viewport.js         Keeps the composer above the on-screen keyboard
     vendor/

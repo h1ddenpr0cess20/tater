@@ -12,6 +12,7 @@ import { createConnectorsPanel } from './ui/connectors.js';
 import { createHistoryPanel } from './ui/history.js';
 import { createToolSwitches } from './tools.js';
 import { createMemoryPanel } from './ui/memory.js';
+import { createMenu } from './ui/menu.js';
 import { createToolsPanel } from './ui/tools.js';
 import { createHud } from './ui/hud.js';
 import { stripStageChrome } from './ui/stage.js';
@@ -25,6 +26,7 @@ const tater = createTaterBuddy({ stage, THREE });
 const memory = createMemory();
 const session = createVoiceSession({ memory });
 const hud = createHud();
+const menu = createMenu();
 const history = createHistory();
 const historyPanel = createHistoryPanel({ history, onNew: startFresh, onResume: pickUp });
 const memoryPanel = createMemoryPanel({ memory });
@@ -44,6 +46,8 @@ const board = createTaskBoard({
 
 const connectorsPanel = createConnectorsPanel({
   board,
+  /** The count of running work belongs where it is visible: the menu chip. */
+  onBusy: (running) => menu.setLive(running),
   /**
    * Which agents are on is settled when a session is minted, so a call that is
    * already up was minted with the old set and cannot be told. A redial is the
@@ -101,6 +105,7 @@ const controls = createControls({
     if (connectorsPanel.isOpen) return connectorsPanel.close();
     if (memoryPanel.isOpen) return memoryPanel.close();
     if (historyPanel.isOpen) return historyPanel.close();
+    if (menu.isOpen) return menu.close();
     session.cancel();
   },
 });
