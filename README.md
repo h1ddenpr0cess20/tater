@@ -31,6 +31,10 @@ back on. It also switches itself off after a minute of silence, and the call
 survives that too. Holding the mic down is the hang-up — a ring closes around it
 while you hold, and the call ends when it lands.
 
+`menu`, in the top corner, is where the panels live: `tools`, `connectors`,
+`memory` and the log, one row each. Picking a row closes the menu behind it,
+and work still running says so on the button while the menu is shut.
+
 `tools` is where the per-call switches will be. It is empty today — memory has
 its own switch, and the connectors answer for the whole server rather than for
 one browser — but the panel and the storage behind it are wired, so a tool the

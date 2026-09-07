@@ -255,15 +255,13 @@ three-d-stage {
 #model option, #voice option { background: #1c1a17; color: var(--ink); }
 #voice { max-width: 112px; }
 
-#tabs {
+#menu {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 10px);
   right: calc(env(safe-area-inset-right) + var(--gutter));
   z-index: 7;
-  display: flex;
-  gap: 8px;
 }
-#tabs button {
+#menu-toggle {
   appearance: none;
   cursor: pointer;
   padding: 10px 13px;
@@ -273,7 +271,35 @@ three-d-stage {
   color: rgba(255, 255, 255, .62);
   transition: border-color .2s;
 }
-#tabs button:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
+#menu-toggle:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
+
+/* The list the button drops: one panel per row, and nothing else. */
+#menu-items {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 148px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 20px;
+  background: rgba(15, 14, 13, .96);
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+#menu-items[hidden] { display: none; }
+#menu-items button {
+  appearance: none;
+  cursor: pointer;
+  padding: 11px 12px;
+  border-radius: 999px;
+  background: none;
+  border: 0;
+  color: rgba(255, 255, 255, .62);
+  text-align: left;
+  white-space: nowrap;
+  transition: color .2s, background-color .2s;
+}
+#menu-items button:hover { color: rgba(255, 255, 255, .9); background: rgba(255, 255, 255, .07); }
 
 #history,
 #memory,
@@ -526,8 +552,8 @@ three-d-stage {
 @media (max-width: 640px) {
   :root { --gutter: 14px; }
 
-  /* The tabs own the top line — the status sits under them, not through them. */
-  #tabs { top: calc(env(safe-area-inset-top) + 4px); }
+  /* The menu owns the top line — the status sits under it, not through it. */
+  #menu { top: calc(env(safe-area-inset-top) + 4px); }
   #status { top: calc(env(safe-area-inset-top) + 54px); }
 
   #composer { flex-wrap: wrap; }
@@ -558,13 +584,14 @@ three-d-stage {
 
 @media (pointer: coarse) {
   #mic, #send { width: 44px; height: 44px; }
-  #tabs button { padding: 13px 15px; }
+  #menu-toggle, #menu-items button { padding: 13px 15px; }
   #history-head button,
   #toolbox-head button,
   .tool-item .switch { padding: 12px 14px; }
-  #tabs button:hover {
+  #menu-toggle:hover, #menu-items button:hover {
     color: rgba(255, 255, 255, .62);
     border-color: rgba(255, 255, 255, .14);
+    background: none;
   }
   #mic:hover { background: rgba(255, 255, 255, .09); color: rgba(255, 255, 255, .7); }
   #mic[aria-pressed="true"]:hover, #mic.muted:hover { background: var(--speaking); color: var(--void); }
@@ -572,7 +599,8 @@ three-d-stage {
 
 @media (prefers-reduced-motion: reduce) {
   #you, #caption, #status, #composer, #mic, #send, #model, #voice,
-  #tabs button, #history-head button, #memory-head button, #toolbox-head button,
+  #menu-toggle, #menu-items button,
+  #history-head button, #memory-head button, #toolbox-head button,
   #memory-add button, .tool-item .switch {
     transition-duration: .01ms;
   }
@@ -709,7 +737,9 @@ three-d-stage {
 }
 #connectors-save:not(:disabled) { color: var(--listening); }
 
-#connectors-toggle.live { color: var(--listening); border-color: rgba(127, 201, 240, .4); }
+/* Work still running, said on the row and on the closed menu alike. */
+#connectors-toggle.live { color: var(--listening); }
+#menu-toggle.live { color: var(--listening); border-color: rgba(127, 201, 240, .4); }
 
 #connectors .task { padding: 14px 0; }
 #connectors .task + .task { border-top: 1px solid rgba(255, 255, 255, .08); }
