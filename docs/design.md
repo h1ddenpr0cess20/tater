@@ -134,10 +134,10 @@ src/
       index.js            The controller, the rig and the per-frame loop
       moods.js            Targets per conversational state
       motion.js           The spring and the chase every channel eases on
-      shape.js            The tuber surface as plain numbers, no renderer
+      shape.js            The tuber surface and its eyes, as plain numbers
       noise.js            The value noise the lumps and the mottling share
-      tuber.js            The mesh built off that surface, with the eyes on it
-      skin.js             Russet mottling, painted per vertex
+      tuber.js            The skin built off that surface, and the flesh inside it
+      skin.js             Russet mottling, painted per vertex; the flesh
       environment.js      Warm even wash, so no facing of him goes dark
     session/            The call. Emits transport-agnostic events
       index.js            Lifecycle: mic, secret, connect, meter, tear down
