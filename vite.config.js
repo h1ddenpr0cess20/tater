@@ -45,9 +45,6 @@ export default defineConfig(({ mode }) => {
       port: Number(env.PORT) || 5173,
       host: true,
     },
-    resolve: {
-      alias: { 'three/addons/': 'three/examples/jsm/' },
-    },
     build: {
       target: 'es2022',
       sourcemap: true,

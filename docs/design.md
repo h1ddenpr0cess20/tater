@@ -156,7 +156,7 @@ src/
       controls.js         Mic (tap mutes, hold hangs up), field, send, pickers
       viewport.js         Keeps the composer above the on-screen keyboard
     vendor/
-      three-d-stage.js    Starter component (renderer, lighting, camera, controls)
+      gfx/                The 3D engine: <three-d-stage>, WebGPU, else WebGL 2
   server/
     index.js            Entry point
     app.js              The middleware chain
@@ -177,8 +177,14 @@ test/                   node:test, against a stub OpenAI
 .github/workflows/      CI (lint, tests, build smoke test), CodeQL, Docker publish
 ```
 
-`src/client/vendor/three-d-stage.js` is a copied starter component with two
-local changes, listed at the top of the file — re-copying it drops them.
+`src/client/vendor/gfx/` is the 3D engine, written for these characters rather
+than pulled in: `<three-d-stage>` (studio lighting, ground shadow, orbit
+controls, framing, resize), the scene API the rig is built from — handed over as
+`GFX` — and the same shading in WGSL for WebGPU and GLSL for WebGL 2. WebGPU is
+tried first, WebGL 2 takes over where it is missing or its device is lost, and
+`?renderer=webgl` pins the fallback. The scene was first written against
+three.js r186, and the engine follows its maths closely enough to draw the same
+picture; `vendor/gfx/LICENSE` says which parts are ported.
 
 ## The transport seam
 

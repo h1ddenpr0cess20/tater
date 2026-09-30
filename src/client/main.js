@@ -1,5 +1,5 @@
 import './styles.css';
-import './vendor/three-d-stage.js';
+import './vendor/gfx/stage.js';
 
 import { fetchCatalog } from './api.js';
 import { createTaterBuddy } from './tater/index.js';
@@ -15,14 +15,13 @@ import { createMemoryPanel } from './ui/memory.js';
 import { createMenu } from './ui/menu.js';
 import { createToolsPanel } from './ui/tools.js';
 import { createHud } from './ui/hud.js';
-import { stripStageChrome } from './ui/stage.js';
 import { trackKeyboardInset } from './ui/viewport.js';
 
-const stage = stripStageChrome(document.querySelector('three-d-stage'));
+const stage = document.querySelector('three-d-stage');
 
-const { THREE } = await stage.ready;
+const { GFX } = await stage.ready;
 
-const tater = createTaterBuddy({ stage, THREE });
+const tater = createTaterBuddy({ stage, GFX });
 const memory = createMemory();
 const session = createVoiceSession({ memory });
 const hud = createHud();
