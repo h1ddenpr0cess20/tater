@@ -1,4 +1,5 @@
 import { buildEnvironment, dropShadows } from './environment.js';
+import { keepOut } from './keepout.js';
 import { ENERGY_GAIN, MOODS } from './moods.js';
 import { approach, spring } from './motion.js';
 import { createTuber } from './tuber.js';
@@ -156,6 +157,7 @@ export function createTaterBuddy({ stage, GFX }) {
 
   stage.setObject(tater);
   dropShadows({ stage, object: tater });
+  if (stage._controls) keepOut({ GFX, camera: stage._camera, controls: stage._controls, bodies: [tuber.mesh] });
 
   return {
     get state() { return state; },

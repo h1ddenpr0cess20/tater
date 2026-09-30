@@ -5,9 +5,8 @@ import * as GFX from '../../src/client/vendor/gfx/index.js';
 import { ENERGY_GAIN, MOODS } from '../../src/client/tater/moods.js';
 import { approach, spring } from '../../src/client/tater/motion.js';
 import { hash3, vnoise } from '../../src/client/tater/noise.js';
-import { EYES, EYE_DIRS, HALF, bumps, eyeRelief, surf, surfNormal } from '../../src/client/tater/shape.js';
+import { EYE_DIRS, HALF, bumps, surf, surfNormal } from '../../src/client/tater/shape.js';
 import { createTaterBuddy } from '../../src/client/tater/index.js';
-import { createTuber } from '../../src/client/tater/tuber.js';
 
 describe('MOODS', () => {
   const CHANNELS = ['jitter', 'lean', 'rock', 'rockSpeed', 'step', 'spin', 'squash', 'stand', 'fidget'];
@@ -226,75 +225,6 @@ describe('shape', () => {
       assert.ok(Math.abs(Math.hypot(...d) - 1) < 0.02, `${d} is not a unit direction`);
     }
   });
-
-  describe('eyeRelief', () => {
-    const along = (v, n) => v[0] * n[0] + v[1] * n[1] + v[2] * n[2];
-
-    it('sinks every eye into the skin, dark at the bottom', () => {
-      for (const eye of EYES) {
-        const out = eyeRelief(eye.at);
-        assert.ok(along(out, eye.normal) < 0, `an eye at ${eye.at} is not sunk in`);
-        assert.equal(out[3], 1);
-      }
-    });
-
-    it('raises a brow round one end of each', () => {
-      for (const eye of EYES) {
-        const brow = eye.at.map((v, k) => v - eye.along[k] * eye.size * 1.7 * 1.35);
-        assert.ok(along(eyeRelief(brow), eye.normal) > 0, `an eye at ${eye.at} has no brow`);
-      }
-    });
-
-    it('leaves the rest of the skin alone', () => {
-      const eye = EYES[0];
-      const clear = eye.at.map((v, k) => v + eye.along[k] * eye.size * 4);
-      assert.deepEqual(eyeRelief(clear), [0, 0, 0, 0]);
-    });
-  });
-});
-
-describe('inside the tuber', () => {
-  const tuber = createTuber(GFX);
-  const flesh = tuber.mesh.getObjectByName('tuber-flesh');
-
-  /**
-   * The eyes were a blob and a torus apiece, buried under the skin, and from
-   * inside him they were all there was: dark hollows trailing noodles.
-   */
-  it('has nothing under the skin but flesh', () => {
-    const parts = [];
-    tuber.mesh.traverse((o) => { if (o.isMesh) parts.push(o.name); });
-    assert.deepEqual(parts.sort(), ['tuber', 'tuber-flesh']);
-  });
-
-  it('keeps the flesh inside the skin, all the way round', () => {
-    const skin = tuber.geometry.attributes.position;
-    const inner = flesh.geometry.attributes.position;
-    assert.equal(inner.count, skin.count);
-    for (let i = 0; i < skin.count; i += 97) {
-      const out = Math.hypot(skin.getX(i), skin.getY(i), skin.getZ(i));
-      const inn = Math.hypot(inner.getX(i), inner.getY(i), inner.getZ(i));
-      assert.ok(inn < out, `the flesh is outside the skin at vertex ${i}`);
-    }
-  });
-
-  it('is flesh from every side, so no angle in there looks out', () => {
-    assert.equal(flesh.material.side, GFX.DoubleSide);
-  });
-
-  it('draws the flesh once the camera is close, and not from across the room', () => {
-    const camera = new GFX.PerspectiveCamera(45, 1, 0.02, 100);
-    tuber.mesh.updateMatrixWorld(true);
-    const look = (z) => {
-      camera.position.set(0, 0, z);
-      camera.updateMatrixWorld(true);
-      tuber.mesh.onAfterRender(null, null, camera);
-      return flesh.visible;
-    };
-    assert.equal(look(2), false);
-    assert.equal(look(0.3), true);
-    assert.equal(look(0), true);
-  });
 });
 
 describe('createTaterBuddy', () => {
@@ -338,13 +268,46 @@ describe('createTaterBuddy', () => {
     assert.ok(size.y > size.z * 1.3, `${size.y} tall is not standing over ${size.z} deep`);
   });
 
+  /**
+   * Scrolled far enough in, the camera used to end up inside him, where the
+   * skin is not drawn and the backs of his eyes hung in the dark with their
+   * brows trailing off them.
+   */
+  it('keeps the camera out of him, however far it is zoomed in', () => {
+    const camera = new GFX.PerspectiveCamera(45, 1.6, 0.02, 100);
+    const controls = { target: new GFX.Vector3(), update: () => false };
+    let object = null;
+    createTaterBuddy({ stage: { _scene: {}, _renderer: null, _camera: camera, _controls: controls, setObject: (o) => { object = o; } }, GFX });
+
+    const tuber = object.getObjectByName('tuber');
+    tuber.updateWorldMatrix(true, true);
+    const skin = [];
+    const pos = tuber.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i += 7) skin.push(new GFX.Vector3().fromBufferAttribute(pos, i).applyMatrix4(tuber.matrixWorld));
+    const middle = new GFX.Box3().setFromObject(tuber).getCenter(new GFX.Vector3());
+
+    for (const dir of [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 1, 0], [-1, 0.3, -0.2]]) {
+      camera.position.copy(middle).add(new GFX.Vector3(...dir).multiplyScalar(0.1));
+      controls.update();
+      const out = camera.position.clone().sub(middle);
+      const way = out.clone().normalize();
+      const there = skin.filter((p) => p.clone().sub(middle).normalize().dot(way) > Math.cos(0.12));
+      assert.ok(out.length() > Math.max(...there.map((p) => p.distanceTo(middle))), `from ${dir} it was left inside him`);
+      assert.ok(Math.min(...skin.map((p) => p.distanceTo(camera.position))) > camera.near, `from ${dir} the near plane reaches his skin`);
+    }
+
+    camera.position.set(0.5, 1, 3);
+    controls.update();
+    assert.deepEqual(camera.position.toArray(), [0.5, 1, 3], 'a camera outside him was moved');
+  });
+
   it('gives every mesh its own name, so any part can be picked out of the scene', () => {
     let object = null;
     createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, GFX });
 
     const names = [];
     object.traverse((o) => { if (o.isMesh) names.push(o.name); });
-    assert.ok(names.includes('tuber'), 'the body did not make it into the scene');
+    assert.ok(names.length > EYE_DIRS.length, 'the eyes did not make it onto the body');
     assert.equal(new Set(names).size, names.length, 'two meshes share a name');
     assert.ok(names.every(Boolean), 'a mesh went out unnamed');
   });
