@@ -17,9 +17,6 @@
     "test": "node --test \"test/**/*.test.js\"",
     "lint": "eslint ."
   },
-  "dependencies": {
-    "three": "^0.186.1"
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-basic-ssl": "^2.3.0",

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import * as THREE from 'three';
+import * as GFX from '../../src/client/vendor/gfx/index.js';
 
 import { ENERGY_GAIN, MOODS } from '../../src/client/tater/moods.js';
 import { approach, spring } from '../../src/client/tater/motion.js';
@@ -231,7 +231,7 @@ describe('createTaterBuddy', () => {
   const stubStage = () => ({ _scene: {}, _renderer: null, setObject() {} });
 
   it('ignores a state that is not one of the four', () => {
-    const tater = createTaterBuddy({ stage: stubStage(), THREE });
+    const tater = createTaterBuddy({ stage: stubStage(), GFX });
     tater.setState('speaking');
 
     for (const junk of ['nonsense', 'constructor', '__proto__', 'toString']) {
@@ -241,7 +241,7 @@ describe('createTaterBuddy', () => {
   });
 
   it('clamps what it is handed, so a bad level cannot escape the range', () => {
-    const tater = createTaterBuddy({ stage: stubStage(), THREE });
+    const tater = createTaterBuddy({ stage: stubStage(), GFX });
     assert.doesNotThrow(() => {
       tater.setLevel(4);
       tater.setLevel(-1);
@@ -252,7 +252,7 @@ describe('createTaterBuddy', () => {
 
   it('hands the stage a named object, since the exporter writes those names out', () => {
     let object = null;
-    createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, THREE });
+    createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, GFX });
     assert.equal(object.name, 'tater');
     assert.ok(object.getObjectByName('tuber'), 'no tuber under the group');
     assert.ok(object.getObjectByName('spinner').getObjectByName('body'));
@@ -261,16 +261,49 @@ describe('createTaterBuddy', () => {
 
   it('stands on his end, from the first frame — the camera frames what it is handed', () => {
     let object = null;
-    createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, THREE });
+    createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, GFX });
 
-    const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
+    const size = new GFX.Box3().setFromObject(object).getSize(new GFX.Vector3());
     assert.ok(size.y > size.x * 1.3, `${size.y} tall is not standing over ${size.x} wide`);
     assert.ok(size.y > size.z * 1.3, `${size.y} tall is not standing over ${size.z} deep`);
   });
 
-  it('gives every mesh its own name — the OBJ exporter writes them out', () => {
+  /**
+   * Scrolled far enough in, the camera used to end up inside him, where the
+   * skin is not drawn and the backs of his eyes hung in the dark with their
+   * brows trailing off them.
+   */
+  it('keeps the camera out of him, however far it is zoomed in', () => {
+    const camera = new GFX.PerspectiveCamera(45, 1.6, 0.02, 100);
+    const controls = { target: new GFX.Vector3(), update: () => false };
     let object = null;
-    createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, THREE });
+    createTaterBuddy({ stage: { _scene: {}, _renderer: null, _camera: camera, _controls: controls, setObject: (o) => { object = o; } }, GFX });
+
+    const tuber = object.getObjectByName('tuber');
+    tuber.updateWorldMatrix(true, true);
+    const skin = [];
+    const pos = tuber.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i += 7) skin.push(new GFX.Vector3().fromBufferAttribute(pos, i).applyMatrix4(tuber.matrixWorld));
+    const middle = new GFX.Box3().setFromObject(tuber).getCenter(new GFX.Vector3());
+
+    for (const dir of [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 1, 0], [-1, 0.3, -0.2]]) {
+      camera.position.copy(middle).add(new GFX.Vector3(...dir).multiplyScalar(0.1));
+      controls.update();
+      const out = camera.position.clone().sub(middle);
+      const way = out.clone().normalize();
+      const there = skin.filter((p) => p.clone().sub(middle).normalize().dot(way) > Math.cos(0.12));
+      assert.ok(out.length() > Math.max(...there.map((p) => p.distanceTo(middle))), `from ${dir} it was left inside him`);
+      assert.ok(Math.min(...skin.map((p) => p.distanceTo(camera.position))) > camera.near, `from ${dir} the near plane reaches his skin`);
+    }
+
+    camera.position.set(0.5, 1, 3);
+    controls.update();
+    assert.deepEqual(camera.position.toArray(), [0.5, 1, 3], 'a camera outside him was moved');
+  });
+
+  it('gives every mesh its own name, so any part can be picked out of the scene', () => {
+    let object = null;
+    createTaterBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, GFX });
 
     const names = [];
     object.traverse((o) => { if (o.isMesh) names.push(o.name); });
